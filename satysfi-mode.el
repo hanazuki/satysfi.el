@@ -86,6 +86,9 @@
 ;;;###autoload
 (define-derived-mode satysfi-mode prog-mode "SATySFi"
   "Major mode for editing SATySFi document."
+  (setq-local comment-start "%")
+  (setq-local comment-end "")
+
   (set-syntax-table satysfi-mode-syntax-table)
   (setq-local syntax-propertize-function #'satysfi-syntax-propertize)
   (setq-local parse-sexp-lookup-properties t)
