@@ -171,8 +171,14 @@
           ":"))
 
 (defvar satysfi-mode-font-lock-keywords
-  `(,satysfi-mode-program-keywords-regexp
-    (,satysfi-mode-header-keywords-regexp 1 font-lock-builtin-face))
+  `((,(lambda (limit)
+        (and (eq (satysfi--current-context) 'program)
+             (re-search-forward satysfi-mode-program-keywords-regexp limit t)))
+     . font-lock-keyword-face)
+    (,(lambda (limit)
+        (and (eq (satysfi--current-context) 'program)
+             (re-search-forward satysfi-mode-header-keywords-regexp limit t)))
+     . font-lock-builtin-face))
   "Font-lock keywords for `satysfi-mode'.")
 
 ;;;###autoload
@@ -189,7 +195,7 @@
   (setq-local parse-sexp-lookup-properties t)
   (setq-local parse-sexp-ignore-comments t)
   (setq-local font-lock-multiline t)
-  (setq-local font-lock-defaults '(satysfi-mode-font-lock-keywords nil nil))
+  (setq-local font-lock-defaults '(satysfi-mode-font-lock-keywords))
   (run-mode-hooks 'satysfi-mode-hook))
 
 (provide 'satysfi-mode)
