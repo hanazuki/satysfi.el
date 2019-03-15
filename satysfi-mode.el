@@ -22,9 +22,7 @@
 
 (eval-when-compile
   (defconst satysfi-syntax-propertize-rules
-    '(((rx (group (any "-|") ?>)) ;; TODO: handling of > should be context-aware
-       (1 "."))
-      ((rx (group ?') (group ?<))
+    '(((rx (group ?') (group ?<))
        (1 "'")
        (2 "(>"))
       ((rx (group ?$) ?{)
