@@ -1,0 +1,15 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: debian:stretch
+    steps:
+      - checkout
+      - run:
+          name: Install
+          command: |
+            apt-get update -qq && apt-get install -y --no-install-recommends emacs25-nox emacs25-el make
+      - run:
+          name: Byte-compile
+          command: |
+            make
