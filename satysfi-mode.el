@@ -206,8 +206,7 @@
     (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-commands-regexp) 1 font-lock-builtin-face))
   "Font-lock keywords for `satysfi-mode'.")
 
-;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.\\(saty\\|satyh\\)\\'" . satysfi-mode))
+;;;###autoload (add-to-list 'auto-mode-alist '("\\.\\(saty\\|satyh\\)\\'" . satysfi-mode))
 
 ;;;###autoload
 (define-derived-mode satysfi-mode prog-mode "SATySFi"
