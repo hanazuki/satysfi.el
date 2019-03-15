@@ -173,35 +173,36 @@
 
 
 (defconst satysfi-mode-program-keywords-regexp
-   (regexp-opt '("let" "let-rec" "let-mutable" "let-inline" "let-block" "let-math" "in" "and"
-                 "match" "with" "when" "as" "if" "then" "else" "fun"
-                 "type" "constraint" "val" "direct" "of"
-                 "module" "struct" "sig" "end"
-                 "before" "while" "do"
-                 "controls" "cycle")
-               'symbols))
+  (regexp-opt '("let" "let-rec" "let-mutable" "let-inline" "let-block" "let-math" "in" "and"
+                "match" "with" "when" "as" "if" "then" "else" "fun"
+                "type" "constraint" "val" "direct" "of"
+                "module" "struct" "sig" "end"
+                "before" "while" "do"
+                "controls" "cycle")
+              'symbols))
 
 (defconst satysfi-mode-header-keywords-regexp
   (concat (regexp-opt '("@import" "@require") t)
           ":"))
 
-(defconst satysfi-mode-command-regexp
-  (rx (any "\\+#") (1+ (or (syntax word) (syntax symbol)))))
+(defconst satysfi-mode-commands-regexp
+  (rx (group (any "\\+#") (1+ (or (syntax word) (syntax symbol))))))
 
-(defun satysfi-mode--match-contextual-keywords (context keywords-regexp)
+(defun satysfi-mode--match-contextual-keywords (contexts keywords-regexp)
   (letrec ((matcher
             (lambda (limit)
               (and
                (re-search-forward keywords-regexp limit t)
                (or
-                (eq (save-match-data (satysfi--current-context)) context)
+                (memq (save-match-data (satysfi--current-context)) contexts)
                 (funcall matcher limit))))))
     matcher))
 
 
 (defvar satysfi-mode-font-lock-keywords
-  `((,(satysfi-mode--match-contextual-keywords 'program satysfi-mode-program-keywords-regexp) 1 font-lock-keyword-face)
-    (,(satysfi-mode--match-contextual-keywords 'program satysfi-mode-header-keywords-regexp) 1 font-lock-keyword-face))
+  `((,(satysfi-mode--match-contextual-keywords '(program) satysfi-mode-program-keywords-regexp) 1 font-lock-keyword-face)
+    (,(satysfi-mode--match-contextual-keywords '(program) satysfi-mode-header-keywords-regexp) 1 font-lock-keyword-face)
+    (,(satysfi-mode--match-contextual-keywords '(block inline) satysfi-mode-commands-regexp) 1 font-lock-builtin-face))
   "Font-lock keywords for `satysfi-mode'.")
 
 ;;;###autoload
