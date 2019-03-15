@@ -172,7 +172,7 @@
   (message (satysfi--active (point))))
 
 
-(defconst satysfi-mode-program-keywords-regexp
+(defvar satysfi-mode-program-keywords-regexp
   (regexp-opt '("let" "let-rec" "let-mutable" "let-inline" "let-block" "let-math" "in" "and"
                 "match" "with" "when" "as" "if" "then" "else" "fun"
                 "type" "constraint" "val" "direct" "of"
@@ -181,18 +181,19 @@
                 "controls" "cycle")
               'symbols))
 
-(defconst satysfi-mode-header-keywords-regexp
+(defvar satysfi-mode-header-keywords-regexp
   (concat (regexp-opt '("@import" "@require") t)
           ":"))
 
-(defconst satysfi-mode-commands-regexp
+(defvar satysfi-mode-commands-regexp
   (rx (group (any "\\+#") (1+ (or (syntax word) (syntax symbol))))))
 
 (defun satysfi-mode--match-contextual-keywords (contexts keywords-regexp)
-  (letrec ((matcher
+  (letrec ((re (symbol-value keywords-regexp))
+           (matcher
             (lambda (limit)
               (and
-               (re-search-forward keywords-regexp limit t)
+               (re-search-forward re limit t)
                (or
                 (memq (save-match-data (satysfi--current-context)) contexts)
                 (funcall matcher limit))))))
@@ -200,9 +201,9 @@
 
 
 (defvar satysfi-mode-font-lock-keywords
-  `((,(satysfi-mode--match-contextual-keywords '(program) satysfi-mode-program-keywords-regexp) 1 font-lock-keyword-face)
-    (,(satysfi-mode--match-contextual-keywords '(program) satysfi-mode-header-keywords-regexp) 1 font-lock-keyword-face)
-    (,(satysfi-mode--match-contextual-keywords '(block inline) satysfi-mode-commands-regexp) 1 font-lock-builtin-face))
+  `((,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-program-keywords-regexp) 1 font-lock-keyword-face)
+    (,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-header-keywords-regexp) 1 font-lock-keyword-face)
+    (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-commands-regexp) 1 font-lock-builtin-face))
   "Font-lock keywords for `satysfi-mode'.")
 
 ;;;###autoload
