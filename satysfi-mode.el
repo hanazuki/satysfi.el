@@ -206,6 +206,60 @@
     (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-commands-regexp) 1 font-lock-builtin-face))
   "Font-lock keywords for `satysfi-mode'.")
 
+(defgroup satysfi nil
+  "SATySFi"
+  :prefix "satysfi-"
+  :group 'languages)
+
+(defcustom satysfi-basic-offset 2
+  "Amount of basic offset"
+  :type 'integer
+  :group 'satysfi)
+
+(defun satysfi-mode-indent-line ()
+  "Indent current line as SATySFi code."
+  (interactive)
+  (let ((indent (satysfi-mode-find-indent (point))))
+    (when indent
+      (indent-line-to (max 0 indent)))))
+
+(defun satysfi-mode-find-indent (pos)
+  (save-excursion
+    (goto-char pos)
+    (beginning-of-line)
+    (pcase (satysfi--current-context)
+      ('string nil)  ; TODO: what about indentation in multiline string literals?
+      ('comment nil)  ; this should never happen, though
+      (`,ctx
+       (satysfi-mode-find-base-indent)))))
+
+(defun satysfi-mode-find-base-indent ()
+  (save-excursion
+    (back-to-indentation)
+    (let ((ppss (syntax-ppss)))
+      (if (not (nth 1 ppss))
+          0  ; no indent for toplevel
+        (let ((open-indentaion
+               (save-excursion
+                 (goto-char (nth 1 ppss))
+                 (current-indentation)))
+              (content-alignment
+               (save-excursion
+                 (goto-char (nth 1 ppss))
+                 (if (looking-at (rx "(|"))
+                     (forward-char 2)
+                   (forward-char 1))
+                 (forward-comment 1)
+                 (if (eq (line-number-at-pos) (line-number-at-pos (nth 1 ppss)))  ; content exists after open paren
+                     (current-column)))))
+          (cond
+           ((or (looking-at (rx "|)"))
+                (eq (syntax-class (syntax-after (point))) 5))  ; 5 for close parenthesis
+            open-indentaion)
+           (content-alignment  ; TODO: make vertical alignment configurable?
+            content-alignment)
+           (t  (+ satysfi-basic-offset open-indentaion))))))))
+
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.\\(saty\\|satyh\\)\\'" . satysfi-mode))
 
 ;;;###autoload
@@ -220,6 +274,9 @@
   (setq-local parse-sexp-ignore-comments t)
   (setq-local font-lock-multiline t)
   (setq-local font-lock-defaults '(satysfi-mode-font-lock-keywords))
+
+  (setq-local indent-line-function #'satysfi-mode-indent-line)
+
   (run-mode-hooks 'satysfi-mode-hook))
 
 (provide 'satysfi-mode)
