@@ -1,5 +1,4 @@
-;;; satysfi-mode.el -- major mode for editing SATySFi documents
-;;; -*- coding: utf-8; lexical-binding: t; -*-
+;;; satysfi-mode.el -- major mode for editing SATySFi documents  -*- lexical-binding: t; -*-
 
 (require 'rx)
 (require 'seq)
@@ -37,8 +36,8 @@
   (funcall (syntax-propertize-rules satysfi-syntax-propertize-rules)
            beg end)
 
-  (catch 'exit
-    (save-excursion
+  (save-excursion
+    (catch 'exit
       (goto-char beg)
       (while (< (point) end)
         (let ((ppss (syntax-ppss)))
@@ -55,8 +54,12 @@
                 (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax "|"))
                 (forward-char +1))
 
-            (forward-comment (buffer-size))
-            (unless (re-search-forward (rx (any "#`<>")) end t)
+            (while (and
+                    (< (point) end)
+                    (forward-comment 1)))
+            (unless (and
+                     (< (point) end)
+                     (re-search-forward (rx (any "#`<>")) end t))
               (throw 'exit t))
             (goto-char (match-beginning 0))
 
@@ -130,31 +133,43 @@
        (nth 9 ppss)  ; positions of open parentheses
        'program)))))
 
-;; Check if pos is just after an activating command
-;; BUGS: text\command(this context should be program);
+;; Check if pos is an active position in block or inline context
 (defun satysfi--active (pos)
-  (catch 'exit
-    (while t
-      (let* ((p (condition-case nil
-                    (scan-sexps pos -1)
-                  (scan-error (throw 'exit nil))))
-             (c (char-after p)))
-        (unless (eq (scan-sexps p +1)
-                    (save-excursion
-                      (goto-char pos)
-                      (forward-comment (- (buffer-size)))
-                      (point)))
+  (save-excursion
+    (goto-char pos)
+    (catch 'exit
+      (let* ((ppss (syntax-ppss))
+             (bos (nth 1 ppss)))
+        ;; never active at toplevel, which is in program context
+        (unless bos
           (throw 'exit nil))
-        (cond
-         ((or (eq c ?\() (eq c ?\[))
-          (setq pos p))
-         ((or (eq c ?#) (eq c ?\\) (eq c ?+))
-          (throw 'exit t))
-         (t (throw 'exit nil)))))))
+
+        (condition-case nil
+            (while t
+              (forward-comment (- (buffer-size)))  ; skip comments if any
+              (let ((c (preceding-char)))
+                (if (or (eq c ?\)) (eq c ?\]))
+                    ;; backtrack to matching paren (unless the closing paren is escaped)
+                    (let ((ppss0 (syntax-ppss (1- (point)))))
+                      (if (eq (nth 0 ppss) (nth 0 ppss0))
+                          (throw 'exit nil)
+                        (goto-char (nth 1 ppss0))))
+                  ;; Check if the last token is a command
+                  (throw 'exit
+                         (and
+                          (looking-back
+                           (rx (any "\\+#") (1+ (or (syntax word) (syntax symbol))))
+                           (- (point) bos))
+                          (match-string 0)))))))))))
+
 
 (defun satysfi-current-context ()
   (interactive)
-  (print (satysfi--current-context)))
+  (message (symbol-name (satysfi--current-context))))
+
+(defun satysfi-current-activation ()
+  (interactive)
+  (message (satysfi--active (point))))
 
 
 (defconst satysfi-mode-program-keywords-regexp
@@ -170,15 +185,23 @@
   (concat (regexp-opt '("@import" "@require") t)
           ":"))
 
+(defconst satysfi-mode-command-regexp
+  (rx (any "\\+#") (1+ (or (syntax word) (syntax symbol)))))
+
+(defun satysfi-mode--match-contextual-keywords (context keywords-regexp)
+  (letrec ((matcher
+            (lambda (limit)
+              (and
+               (re-search-forward keywords-regexp limit t)
+               (or
+                (eq (save-match-data (satysfi--current-context)) context)
+                (funcall matcher limit))))))
+    matcher))
+
+
 (defvar satysfi-mode-font-lock-keywords
-  `((,(lambda (limit)
-        (and (eq (satysfi--current-context) 'program)
-             (re-search-forward satysfi-mode-program-keywords-regexp limit t)))
-     . font-lock-keyword-face)
-    (,(lambda (limit)
-        (and (eq (satysfi--current-context) 'program)
-             (re-search-forward satysfi-mode-header-keywords-regexp limit t)))
-     . font-lock-builtin-face))
+  `((,(satysfi-mode--match-contextual-keywords 'program satysfi-mode-program-keywords-regexp) 1 font-lock-keyword-face)
+    (,(satysfi-mode--match-contextual-keywords 'program satysfi-mode-header-keywords-regexp) 1 font-lock-keyword-face))
   "Font-lock keywords for `satysfi-mode'.")
 
 ;;;###autoload
