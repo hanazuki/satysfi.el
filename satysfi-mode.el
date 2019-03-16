@@ -50,17 +50,16 @@
 
 (eval-when-compile
   (defconst satysfi-syntax-propertize-rules
-    '(((rx (group ?') (group ?<))
-       (1 "'")
-       (2 "(>"))
+    '(((rx (group ?') ?<)
+       (1 "'"))
       ((rx (group ?$) ?{)
        (1 "'"))
       ((rx (group ?!) (any "([<{"))
        (1 "'")))))
 
 (defun satysfi-syntax-propertize (beg end)
-  (funcall (syntax-propertize-rules satysfi-syntax-propertize-rules)
-           beg end)
+  (remove-list-of-text-properties beg end '(satysfi-lexing-context satysfi-active-command))
+  (funcall (syntax-propertize-rules satysfi-syntax-propertize-rules) beg end)
 
   (save-excursion
     (catch 'exit
@@ -85,27 +84,38 @@
                     (forward-comment 1)))
             (unless (and
                      (< (point) end)
-                     (re-search-forward (rx (any "#`<>")) end t))
+                     (re-search-forward (rx (any "#`<>([{")) end t))
               (throw 'exit t))
             (goto-char (match-beginning 0))
 
-            (cond
-             ((and (looking-at-p (rx (? ?#) (+ ?`))))
-              (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax "|"))
-              (goto-char (match-end 0)))
-             ((eq (following-char) ?<)
-              (let ((ctx (satysfi--current-context)))
-                (if (or (eq ctx 'block) (eq ctx 'inline))
-                    (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax "(>"))))
-              (forward-char 1))
-             ((eq (following-char) ?>)
-              (let ((ctx (satysfi--current-context)))
-                (if (eq ctx 'block)
-                    (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax ")<"))))
-              (forward-char 1))
-             (t (forward-char 1)))))))))
+            (pcase (following-char)
+              ((guard (looking-at-p (rx (? ?#) (+ ?`))))
+               (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax "|"))
+               (goto-char (match-end 0)))
+              (?<
+               (let ((ctx (car (satysfi-mode--lexing-context (point)))))
+                 (cond
+                  ((memq ctx '(block inline))
+                   (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax "(>"))
+                   (put-text-property (point) (1+ (point)) 'satysfi-lexing-context (satysfi-mode--lexing-context-transition ctx (point))))
+                  ((eq (preceding-char) ?')
+                   (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax "(>"))
+                   (put-text-property (point) (1+ (point)) 'satysfi-lexing-context (satysfi-mode--lexing-context-transition ctx (point))))))
+               (forward-char 1))
+              (?>
+               (if (eq (car (satysfi-mode--lexing-context (point))) 'block)
+                   (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax ")<")))
+               (forward-char 1))
+              ((or ?\( ?\[ ?\{)
+               (let ((ctx (car (satysfi-mode--lexing-context (point)))))
+                 (when (or (memq ctx '(program block inline))
+                           (and (eq ctx 'math) (eq (preceding-char) ?!)))
+                   (put-text-property (point) (1+ (point)) 'satysfi-lexing-context (satysfi-mode--lexing-context-transition ctx (point)))))
+               (forward-char 1))
+              (_
+               (forward-char 1)))))))))
 
-;; Compute the lexing context at the point.
+;; Compute lexing context transition at pos.
 ;; From lexer.mll:
 ;;
 ;;   The SATySFi lexer is stateful; the transitions are:
@@ -122,46 +132,53 @@
 ;;
 ;;   Note that the active-block and active-inline transitions are one-way.
 ;;
-(defun satysfi--current-context ()
-  (let ((ppss (syntax-ppss)))
+(defun satysfi-mode--lexing-context-transition (current-context pos)
+  (let ((ch (char-after pos)))
+    (pcase current-context
+      ('program
+       (pcase ch
+         (?\< 'block)
+         (?\{ (if (eq (char-before pos) ?$) 'math 'inline))))
+      ('block
+          (pcase ch
+            (?\( (if (satysfi--active-p pos) 'program))
+            (?\[ (if (satysfi--active-p pos) 'program))
+            (?\< 'block)
+            (?\{ 'inline)))
+      ('inline
+        (pcase ch
+          (?\( (if (satysfi--active-p pos) 'program))
+          (?\[ (if (satysfi--active-p pos) 'program))
+          (?\< 'block)
+          (?\{ (if (eq (char-before pos) ?$) 'math 'inline))))
+      ('math
+       (when (eq (char-before pos) ?!)
+         (pcase ch
+           (?\( 'program)
+           (?\[ 'program)
+           (?\< 'block)
+           (?\{ 'inline)))))))
+
+;; Returns lexing context at pos and the position of
+;; enclosing open parenthesis.
+(defun satysfi-mode--lexing-context (pos)
+  ; find innermost paren with lexing context transition
+  (let ((ppss (syntax-ppss pos)))
     (cond
      ((nth 3 ppss) 'string)
      ((nth 4 ppss) 'comment)
      (t
-      (seq-reduce
-       (lambda (st p)
-         (let ((ch (char-after p)))
-           (or
-            (pcase st
-             ('program
-              (pcase ch
-               (?\< 'block)
-               (?\{ (if (eq (char-before p) ?$) 'math 'inline))))
-             ('block
-              (pcase ch
-               (?\( (if (satysfi--active p) 'program))
-               (?\[ (if (satysfi--active p) 'program))
-               (?\< 'block)
-               (?\{ 'inline)))
-             ('inline
-              (pcase ch
-               (?\( (if (satysfi--active p) 'program))
-               (?\[ (if (satysfi--active p) 'program))
-               (?\< 'block)
-               (?\{ (if (eq (char-before p) ?$) 'math 'inline))))
-             ('math
-              (when (eq (char-before p) ?!)
-                (pcase ch
-                 (?\( 'program)
-                 (?\[ 'program)
-                 (?\< 'block)
-                 (?\{ 'inline)))))
-            st)))
-       (nth 9 ppss)  ; positions of open parentheses
-       'program)))))
+      (catch 'exit
+        (dolist (p (reverse (nth 9 (syntax-ppss pos))))
+          (let ((ctx (get-text-property p 'satysfi-lexing-context)))
+            (when ctx
+              (throw 'exit (cons ctx p)))))
+        (cons 'program 0))))))
+
 
 ;; Check if pos is an active position in block or inline context
-(defun satysfi--active (pos)
+;; Returns active command if the position is active
+(defun satysfi--active-p (pos &optional skip-block-inline)
   (save-excursion
     (goto-char pos)
     (catch 'exit
@@ -171,36 +188,53 @@
         (unless bos
           (throw 'exit nil))
 
-        (condition-case nil
-            (while t
-              (forward-comment (- (buffer-size)))
-              (cond
-               ((memq (preceding-char) '(?\) ?\]))
-                ;; backtrack to matching paren (unless the closing paren is escaped)
-                (let ((ppss0 (syntax-ppss (1- (point)))))
-                  (if (eq (nth 0 ppss) (nth 0 ppss0))
-                      (throw 'exit nil)
-                    (goto-char (nth 1 ppss0)))))
-               ((looking-back (rx (or "?*" "?:")) 2)
-                (forward-char -2))
-               (t
-                ;; Check if the last token is a command
-                (throw 'exit
-                       (and
-                        (looking-back
-                         (rx (any "\\+#") (1+ (or (syntax word) (syntax symbol))))
-                         (- (point) bos))
-                        (match-string 0)))))))))))
+        (when skip-block-inline
+          (forward-comment (- (buffer-size)))
+          (while (memq (preceding-char) '(?\> ?\}))
+            ;; backtrack to matching paren (unless the closing paren is escaped)
+            (let ((ppss0 (syntax-ppss (1- (point)))))
+              (if (eq (nth 0 ppss) (nth 0 ppss0))
+                  (throw 'exit nil)
+                (goto-char (nth 1 ppss0))))))
 
+        (while t
+          (forward-comment (- (buffer-size)))
+          (cond
+           ((memq (preceding-char) '(?\) ?\]))
+            ;; backtrack to matching paren (unless the closing paren is escaped)
+            (let ((ppss0 (syntax-ppss (1- (point)))))
+              (if (eq (nth 0 ppss) (nth 0 ppss0))
+                  (throw 'exit nil)
+                (goto-char (nth 1 ppss0)))))
+           ((looking-back (rx (or "?*" "?:")) 2)
+            (forward-char -2))
+           (t
+            ;; Check if the last token is a command
+            (throw 'exit
+                   (and
+                    (looking-back
+                     (rx (any "\\+#") (1+ (or (syntax word) (syntax symbol))))
+                     (- (point) bos))
+                    (match-string 0))))))))))
+
+(defun satysfi-mode--active-command (pos)
+  (let* ((tmp (satysfi-mode--lexing-context pos))
+         (ctx (car tmp))
+         (pos (cdr tmp)))
+    (if (memq ctx '(block inline))
+        (satysfi--active-p pos t))))
 
 (defun satysfi-current-context ()
   (interactive)
-  (message (symbol-name (satysfi--current-context))))
+  (message "%s" (satysfi-mode--lexing-context (point))))
 
 (defun satysfi-current-activation ()
   (interactive)
-  (message (satysfi--active (point))))
+  (message (satysfi--active-p (point))))
 
+(defun satysfi-current-command ()
+  (interactive)
+  (message (satysfi-mode--active-command (point))))
 
 (defvar satysfi-mode-program-keywords-regexp
   (regexp-opt '("let" "let-rec" "let-mutable" "let-inline" "let-block" "let-math" "in" "and"
@@ -230,7 +264,7 @@
               (and
                (re-search-forward re limit t)
                (or
-                (memq (save-match-data (satysfi--current-context)) contexts)
+                (memq (save-match-data (car (satysfi-mode--lexing-context (point)))) contexts)
                 (funcall matcher limit))))))
     matcher))
 
@@ -267,7 +301,7 @@
   (save-excursion
     (goto-char pos)
     (beginning-of-line)
-    (pcase (satysfi--current-context)
+    (pcase (car (satysfi-mode--lexing-context (point)))
       ('string nil)  ; TODO: what about indentation in multiline string literals?
       ('comment nil)  ; this should never happen, though
       (`,ctx
