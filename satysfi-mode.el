@@ -132,29 +132,30 @@
        (lambda (st p)
          (let ((ch (char-after p)))
            (or
-            (cond
-             ((eq st 'program)
-              (cond
-               ((eq ch ?\<) 'block)
-               ((eq ch ?\{) (if (eq (char-before p) ?$) 'math 'inline))))
-             ((eq st 'block)
-              (cond
-               ((eq ch ?\() (if (satysfi--active p) 'program))
-               ((eq ch ?\[) (if (satysfi--active p) 'program))
-               ((eq ch ?\<) 'block)
-               ((eq ch ?\{) 'inline)))
-             ((eq st 'inline)
-              (cond
-               ((eq ch ?\() (if (satysfi--active p) 'program))
-               ((eq ch ?\[) (if (satysfi--active p) 'program))
-               ((eq ch ?\<) 'block)
-               ((eq ch ?\{) (if (eq (char-before p) ?$) 'math 'inline))))
-             ((and (eq st 'math) (eq (char-before p) ?!))
-              (cond
-               ((eq ch ?\() 'program)
-               ((eq ch ?\[) 'program)
-               ((eq ch ?\<) 'block)
-               ((eq ch ?\{) 'inline))))
+            (pcase st
+             ('program
+              (pcase ch
+               (?\< 'block)
+               (?\{ (if (eq (char-before p) ?$) 'math 'inline))))
+             ('block
+              (pcase ch
+               (?\( (if (satysfi--active p) 'program))
+               (?\[ (if (satysfi--active p) 'program))
+               (?\< 'block)
+               (?\{ 'inline)))
+             ('inline
+              (pcase ch
+               (?\( (if (satysfi--active p) 'program))
+               (?\[ (if (satysfi--active p) 'program))
+               (?\< 'block)
+               (?\{ (if (eq (char-before p) ?$) 'math 'inline))))
+             ('math
+              (when (eq (char-before p) ?!)
+                (pcase ch
+                 (?\( 'program)
+                 (?\[ 'program)
+                 (?\< 'block)
+                 (?\{ 'inline)))))
             st)))
        (nth 9 ppss)  ; positions of open parentheses
        'program)))))
