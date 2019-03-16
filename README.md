@@ -22,4 +22,3 @@ To-Dos:
 - Auto indentation in `\listing{}`
 - Automatic parentheses pairing
 - Auto indentation in program segments
-- Flycheck error-parser
