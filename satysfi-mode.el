@@ -24,6 +24,10 @@
 (require 'rx)
 (require 'seq)
 
+; Optional dependency
+(eval-when-compile
+  (require 'paren))
+
 (defvar satysfi-mode-syntax-table
   (let ((st (make-syntax-table)))
     (modify-syntax-entry ?% "<" st)
@@ -279,14 +283,52 @@
             content-alignment)
            (t  (+ satysfi-basic-offset open-indentaion))))))))
 
+(defun satysfi-mode-show-paren-data ()
+  (save-excursion
+    (cond
+     ((and (eq (preceding-char) ?\() (eq (following-char) ?|))
+      (forward-char -1))
+     ((and (eq (preceding-char) ?|) (eq (following-char) ?\)))
+      (forward-char +1))
+     ((or (looking-at "'<") (looking-at "${"))
+      (forward-char +1)))
+
+    (pcase (show-paren--default)
+      (`(,here-beg ,here-end ,there-beg ,there-end ,mismatch)
+       (pcase (cons (satysfi-mode--extend-paren here-beg here-end)
+                    (satysfi-mode--extend-paren there-beg there-end))
+         (`((,here-beg . ,here-end) . (,there-beg . ,there-end))
+          (let ((here (buffer-substring here-beg here-end))
+                (there (buffer-substring there-beg there-end)))
+            (when (or (and (string= here "(|") (not (string= there "|)")))
+                      (and (not (string= here "(|")) (string= there "|)"))
+                      (and (string= here "|)") (not (string= there "(|")))
+                      (and (not (string= here "|)")) (string= there "(|")))
+              (setq mismatch t))
+            (list here-beg here-end there-beg there-end mismatch))))))))
+
+(defun satysfi-mode--extend-paren (beg end)
+  (let ((str (buffer-substring beg end)))
+    (pcase str
+      ("("
+       (pcase (char-after end)
+         (?| (setq end (1+ end)))))
+      (")"
+       (pcase (char-before beg)
+         (?| (setq beg (1- beg)))))
+      ("<"
+       (pcase (char-before beg)
+         (?' (setq beg (1- beg)))))
+      ("{"
+       (pcase (char-before beg)
+         (?$ (setq beg (1- beg))))))
+    (cons beg end)))
+
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.\\(saty\\|satyh\\)\\'" . satysfi-mode))
 
 ;;;###autoload
 (define-derived-mode satysfi-mode prog-mode "SATySFi"
   "Major mode for editing SATySFi document."
-  (setq-local comment-start "%")
-  (setq-local comment-end "")
-
   (set-syntax-table satysfi-mode-syntax-table)
   (setq-local syntax-propertize-function #'satysfi-syntax-propertize)
   (setq-local parse-sexp-lookup-properties t)
@@ -294,7 +336,15 @@
   (setq-local font-lock-multiline t)
   (setq-local font-lock-defaults '(satysfi-mode-font-lock-keywords))
 
+  ;; for indent
   (setq-local indent-line-function #'satysfi-mode-indent-line)
+
+  ;; for paren
+  (setq-local show-paren-data-function #'satysfi-mode-show-paren-data)
+
+  ;; for comment
+  (setq-local comment-start "%")
+  (setq-local comment-end "")
 
   (run-mode-hooks 'satysfi-mode-hook))
 
