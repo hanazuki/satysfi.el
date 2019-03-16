@@ -172,21 +172,24 @@
 
         (condition-case nil
             (while t
-              (forward-comment (- (buffer-size)))  ; skip comments if any
-              (let ((c (preceding-char)))
-                (if (or (eq c ?\)) (eq c ?\]))
-                    ;; backtrack to matching paren (unless the closing paren is escaped)
-                    (let ((ppss0 (syntax-ppss (1- (point)))))
-                      (if (eq (nth 0 ppss) (nth 0 ppss0))
-                          (throw 'exit nil)
-                        (goto-char (nth 1 ppss0))))
-                  ;; Check if the last token is a command
-                  (throw 'exit
-                         (and
-                          (looking-back
-                           (rx (any "\\+#") (1+ (or (syntax word) (syntax symbol))))
-                           (- (point) bos))
-                          (match-string 0)))))))))))
+              (forward-comment (- (buffer-size)))
+              (cond
+               ((memq (preceding-char) '(?\) ?\]))
+                ;; backtrack to matching paren (unless the closing paren is escaped)
+                (let ((ppss0 (syntax-ppss (1- (point)))))
+                  (if (eq (nth 0 ppss) (nth 0 ppss0))
+                      (throw 'exit nil)
+                    (goto-char (nth 1 ppss0)))))
+               ((looking-back (rx (or "?*" "?:")) 2)
+                (forward-char -2))
+               (t
+                ;; Check if the last token is a command
+                (throw 'exit
+                       (and
+                        (looking-back
+                         (rx (any "\\+#") (1+ (or (syntax word) (syntax symbol))))
+                         (- (point) bos))
+                        (match-string 0)))))))))))
 
 
 (defun satysfi-current-context ()
