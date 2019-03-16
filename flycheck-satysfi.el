@@ -26,6 +26,8 @@
 
 (defvar flycheck-satysfi-typecheck-only
   t)
+(defvar flycheck-satysfi-use-bytecompiler
+  t)
 
 (defun flycheck-satysfi-parse-errors (output checker buffer)
   ;; Errors and warnings are marked with ! at BoL.
@@ -68,6 +70,7 @@
   :command ("satysfi"
             "-o" "/dev/null"  ; TODO: Windows?
             (option-flag "-t" flycheck-satysfi-typecheck-only)
+            (option-flag "-t" flycheck-satysfi-use-bytecompiler)
             source-inplace)
   :error-parser flycheck-satysfi-parse-errors
   :modes satysfi-mode)
