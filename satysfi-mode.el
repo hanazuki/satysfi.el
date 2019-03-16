@@ -205,9 +205,11 @@
   (regexp-opt '("let" "let-rec" "let-mutable" "let-inline" "let-block" "let-math" "in" "and"
                 "match" "with" "when" "as" "if" "then" "else" "fun"
                 "type" "constraint" "val" "direct" "of"
-                "module" "struct" "sig" "end"
+                "module" "struct" "sig" "end" "open"
                 "before" "while" "do"
-                "controls" "cycle")
+                "controls" "cycle"
+                "command" "inline-cmd" "block-cmd" "math-cmd"
+                "not" "mod" "true" "false")
               'symbols))
 
 (defvar satysfi-mode-header-keywords-regexp
