@@ -90,7 +90,7 @@
             (goto-char (match-beginning 0))
 
             (cond
-             ((looking-at (rx (? ?#) (+ ?`)))
+             ((and (looking-at-p (rx (? ?#) (+ ?`))))
               (put-text-property (point) (1+ (point)) 'syntax-table (string-to-syntax "|"))
               (goto-char (match-end 0)))
              ((eq (following-char) ?<)
@@ -275,14 +275,14 @@
               (content-alignment
                (save-excursion
                  (goto-char (nth 1 ppss))
-                 (if (looking-at (rx "(|"))
+                 (if (looking-at-p (rx "(|"))
                      (forward-char 2)
                    (forward-char 1))
                  (forward-comment 1)
                  (if (eq (line-number-at-pos) (line-number-at-pos (nth 1 ppss)))  ; content exists after open paren
                      (current-column)))))
           (cond
-           ((or (looking-at (rx "|)"))
+           ((or (looking-at-p (rx "|)"))
                 (eq (syntax-class (syntax-after (point))) 5))  ; 5 for close parenthesis
             open-indentaion)
            (content-alignment  ; TODO: make vertical alignment configurable?
@@ -296,7 +296,7 @@
       (forward-char -1))
      ((and (eq (preceding-char) ?|) (eq (following-char) ?\)))
       (forward-char +1))
-     ((or (looking-at "'<") (looking-at "${"))
+     ((or (looking-at-p "'<") (looking-at-p "${"))
       (forward-char +1)))
 
     (pcase (show-paren--default)
