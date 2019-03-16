@@ -216,8 +216,11 @@
   (concat (regexp-opt '("@import" "@require") t)
           ":"))
 
-(defvar satysfi-mode-commands-regexp
-  (rx (group (any "\\+#") (1+ (or (syntax word) (syntax symbol))))))
+(defvar satysfi-mode-block-commands-regexp
+  (rx (group "+" (1+ (or (syntax word) (syntax symbol))))))
+
+(defvar satysfi-mode-inline-commands-regexp
+  (rx (group "\\" (1+ (or (syntax word) (syntax symbol))))))
 
 (defun satysfi-mode--match-contextual-keywords (contexts keywords-regexp)
   (letrec ((re (symbol-value keywords-regexp))
@@ -232,10 +235,15 @@
 
 
 (defvar satysfi-mode-font-lock-keywords
-  `((,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-program-keywords-regexp) 1 font-lock-keyword-face)
-    (,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-header-keywords-regexp) 1 font-lock-keyword-face)
-    (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-commands-regexp) 1 font-lock-builtin-face))
+  `((,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-program-keywords-regexp) 1 satysfi-mode-program-keyword-face)
+    (,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-header-keywords-regexp) 1 satysfi-mode-header-keyword-face)
+    (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-block-commands-regexp) 1 satysfi-mode-block-command-face)
+    (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-inline-command-face)
+    (,(satysfi-mode--match-contextual-keywords '(math) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-math-command-face))
   "Font-lock keywords for `satysfi-mode'.")
+
+(defun satysfi-mode-syntactic-face (state)
+  (if (nth 3 state) satysfi-mode-string-face satysfi-mode-comment-face))
 
 (defgroup satysfi nil
   "SATySFi"
@@ -332,6 +340,21 @@
          (?$ (setq beg (1- beg))))))
     (cons beg end)))
 
+(defvar satysfi-mode-block-command-face
+  font-lock-function-name-face)
+(defvar satysfi-mode-inline-command-face
+  font-lock-function-name-face)
+(defvar satysfi-mode-math-command-face
+  font-lock-function-name-face)
+(defvar satysfi-mode-program-keyword-face
+  font-lock-keyword-face)
+(defvar satysfi-mode-header-keyword-face
+  font-lock-keyword-face)
+(defvar satysfi-mode-string-face
+  font-lock-string-face)
+(defvar satysfi-mode-comment-face
+  font-lock-comment-face)
+
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.\\(saty\\|satyh\\)\\'" . satysfi-mode))
 
 ;;;###autoload
@@ -342,7 +365,12 @@
   (setq-local parse-sexp-lookup-properties t)
   (setq-local parse-sexp-ignore-comments t)
   (setq-local font-lock-multiline t)
-  (setq-local font-lock-defaults '(satysfi-mode-font-lock-keywords))
+  (setq-local font-lock-defaults
+              `(satysfi-mode-font-lock-keywords
+                nil
+                nil
+                nil
+                (font-lock-syntactic-face-function . satysfi-mode-syntactic-face)))
 
   ;; for indent
   (setq-local indent-line-function #'satysfi-mode-indent-line)
