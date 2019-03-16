@@ -289,15 +289,20 @@
                  (if (looking-at-p (rx "(|"))
                      (forward-char 2)
                    (forward-char 1))
-                 (forward-comment 1)
-                 (if (eq (line-number-at-pos) (line-number-at-pos (nth 1 ppss)))  ; content exists after open paren
-                     (current-column)))))
+                 ;; check if content exists after open paren
+                 (let ((line (line-number-at-pos))
+                       (column (current-column)))
+                   (forward-comment 1)
+                   (if (and
+                        (eq (line-number-at-pos) line)
+                        (not (eq (current-column) (line-end-position))))
+                     (current-column))))))
           (cond
+           (content-alignment  ; TODO: make vertical alignment configurable?
+            content-alignment)
            ((or (looking-at-p (rx "|)"))
                 (eq (syntax-class (syntax-after (point))) 5))  ; 5 for close parenthesis
             open-indentaion)
-           (content-alignment  ; TODO: make vertical alignment configurable?
-            content-alignment)
            (t  (+ satysfi-basic-offset open-indentaion))))))))
 
 (defun satysfi-mode-show-paren-data ()
