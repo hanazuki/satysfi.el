@@ -21,6 +21,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+(require 'cl-lib)
 (require 'rx)
 (require 'seq)
 
@@ -28,23 +29,34 @@
 (eval-when-compile
   (require 'paren))
 
+(defconst satysfi-mode--syntax-alist
+  '((?\n . ">")
+    (?#  . "'")
+    (?%  . "<")
+    (?\( . "()")
+    (?\) . ")(")
+    (?_  . "_")
+    (?\[ . "(]")
+    (?\\ . "/")
+    (?\] . ")[")
+    (?\{ . "(}")
+    (?\} . "){")))
+
 (defvar satysfi-mode-syntax-table
   (let ((st (make-syntax-table)))
-    (modify-syntax-entry ?% "<" st)
-    (modify-syntax-entry ?\n ">" st)
-    (modify-syntax-entry ?\\ "/" st)
-    (modify-syntax-entry ?< "." st)
-    (modify-syntax-entry ?> "." st)
-    (modify-syntax-entry ?- "_" st)
-    (modify-syntax-entry ?_ "_" st)
-    (modify-syntax-entry ?* "." st)
-    (modify-syntax-entry ?| "." st)
-    (modify-syntax-entry ?& "." st)
-    (modify-syntax-entry ?= "." st)
-    (modify-syntax-entry ?$ "." st)
-    (modify-syntax-entry ?\" "." st)
-    (modify-syntax-entry ?\' "." st)
-    (modify-syntax-entry ?# "'" st)
+    ;; reset all symbols
+    (loop for c from ?! to ?/
+          do (modify-syntax-entry c "." st))
+    (loop for c from ?: to ?@
+          do (modify-syntax-entry c "." st))
+    (loop for c from ?\[ to ?`
+          do (modify-syntax-entry c "." st))
+    (loop for c from ?\{ to ?~
+          do (modify-syntax-entry c "." st))
+
+    (loop for (c . syntax) in satysfi-mode--syntax-alist
+          do (modify-syntax-entry c syntax st))
+
     st)
   "Syntax table for `satysfi-mode'.")
 
@@ -55,7 +67,9 @@
       ((rx (group ?$) ?{)
        (1 "'"))
       ((rx (group ?!) (any "([<{"))
-       (1 "'")))))
+       (1 "'"))
+      ((rx (or (syntax word) (syntax symbol)) (group (1+ "-")))
+       (1 "_")))))
 
 (defun satysfi-syntax-propertize (beg end)
   (remove-list-of-text-properties beg end '(satysfi-lexing-context satysfi-active-command))
