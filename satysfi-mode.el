@@ -45,16 +45,16 @@
 (defvar satysfi-mode-syntax-table
   (let ((st (make-syntax-table)))
     ;; reset all symbols
-    (loop for c from ?! to ?/
+    (cl-loop for c from ?! to ?/
           do (modify-syntax-entry c "." st))
-    (loop for c from ?: to ?@
+    (cl-loop for c from ?: to ?@
           do (modify-syntax-entry c "." st))
-    (loop for c from ?\[ to ?`
+    (cl-loop for c from ?\[ to ?`
           do (modify-syntax-entry c "." st))
-    (loop for c from ?\{ to ?~
+    (cl-loop for c from ?\{ to ?~
           do (modify-syntax-entry c "." st))
 
-    (loop for (c . syntax) in satysfi-mode--syntax-alist
+    (cl-loop for (c . syntax) in satysfi-mode--syntax-alist
           do (modify-syntax-entry c syntax st))
 
     st)
