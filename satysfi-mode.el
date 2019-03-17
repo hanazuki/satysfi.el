@@ -295,7 +295,11 @@
   (interactive)
   (let ((indent (satysfi-mode-find-indent (point))))
     (when indent
-      (indent-line-to (max 0 indent)))))
+      (let ((orig-column (current-column))
+            (orig-indent (current-indentation)))
+        (indent-line-to (max 0 indent))
+        (when (< orig-indent orig-column)
+          (move-to-column (+ (current-indentation) (- orig-column orig-indent))))))))
 
 (defun satysfi-mode-find-indent (pos)
   (save-excursion
@@ -471,6 +475,9 @@
   ;; for comment
   (setq-local comment-start "%")
   (setq-local comment-end "")
+
+  ;; for electric
+  (setq-local electric-indent-chars '(?\n ?\} ?\> ?\) ?\] ?*))
 
   (run-mode-hooks 'satysfi-mode-hook))
 
