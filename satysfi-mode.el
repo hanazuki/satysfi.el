@@ -312,7 +312,10 @@
     (back-to-indentation)
     (let ((ppss (syntax-ppss)))
       (if (not (nth 1 ppss))
-          0  ; no indent for toplevel
+          ;; no indent for toplevel
+          (if (fboundp 'prog-first-column)
+              (prog-first-column)
+            0)
         (let ((open-indentaion
                (save-excursion
                  (goto-char (nth 1 ppss))
