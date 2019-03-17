@@ -266,10 +266,10 @@
           ":"))
 
 (defvar satysfi-mode-block-commands-regexp
-  (rx (group "+" (1+ (or (syntax word) (syntax symbol))))))
+  (rx (| bol (not-char "\\")) (0+ "\\\\") (group "+" (1+ (or (syntax word) (syntax symbol))))))
 
 (defvar satysfi-mode-inline-commands-regexp
-  (rx (group "\\" (1+ (or (syntax word) (syntax symbol))))))
+  (rx (| bol (not-char "\\")) (0+ "\\\\") (group "\\" (1+ (or (syntax word) (syntax symbol))))))
 
 (defun satysfi-mode--match-contextual-keywords (contexts keywords-regexp)
   (letrec ((re (symbol-value keywords-regexp))
