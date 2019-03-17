@@ -271,6 +271,9 @@
 (defvar satysfi-mode-inline-commands-regexp
   (rx (| bol point (not-char "\\")) (0+ "\\\\") (group "\\" (1+ (or (syntax word) (syntax symbol))))))
 
+(defvar satysfi-mode-escaped-chars-regexp
+  (rx (group "\\" (any (?\s . ?@) (?\[ . ?`) (?\{ . ?~)))))
+
 (defun satysfi-mode--match-contextual-keywords (contexts keywords-regexp)
   (letrec ((re (symbol-value keywords-regexp))
            (matcher
@@ -288,7 +291,8 @@
     (,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-header-keywords-regexp) 1 satysfi-mode-header-keyword-face)
     (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-block-commands-regexp) 1 satysfi-mode-block-command-face)
     (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-inline-command-face)
-    (,(satysfi-mode--match-contextual-keywords '(math) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-math-command-face))
+    (,(satysfi-mode--match-contextual-keywords '(math) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-math-command-face)
+    (,(satysfi-mode--match-contextual-keywords '(inline math) 'satysfi-mode-escaped-chars-regexp) 1 satysfi-mode-escaped-char-face))
   "Font-lock keywords for `satysfi-mode'.")
 
 (defun satysfi-mode-syntactic-face (state)
@@ -458,6 +462,8 @@
   font-lock-keyword-face)
 (defvar satysfi-mode-header-keyword-face
   font-lock-keyword-face)
+(defvar satysfi-mode-escaped-char-face
+  font-lock-warning-face)
 (defvar satysfi-mode-string-face
   font-lock-string-face)
 (defvar satysfi-mode-comment-face
