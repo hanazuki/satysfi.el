@@ -322,9 +322,9 @@
     (let ((ppss (syntax-ppss)))
       (if (not (nth 1 ppss))
           ;; no indent for toplevel
-          (if (fboundp 'prog-first-column)
-              (prog-first-column)
-            0)
+          (cons
+           (if (fboundp 'prog-first-column) (prog-first-column) 0)
+           nil)
         (let ((open-indentaion
                (save-excursion
                  (goto-char (nth 1 ppss))
@@ -356,35 +356,38 @@
     ("\\listing" . satysfi-mode-find-itemize-indent)))
 
 (defun satysfi-mode-find-itemize-indent (first-column)
-  (save-excursion
-    (back-to-indentation)
-    (max
-     first-column
-     (or
-      (catch 'exit
-        (if (looking-at (rx (1+ ?*)))
-            (let ((level (- (match-end 0) (match-beginning 0))))
-              (while (not (bobp))
-                (forward-line -1)
-                (back-to-indentation)
-                (when (looking-at (rx (1+ ?*)))
-                  (let ((l (- (match-end 0) (match-beginning 0))))
-                    (cond
-                     ((= l level)
-                      (throw 'exit (current-column)))
-                     ((< l level)
-                      (goto-char (match-end 0))
-                      (skip-syntax-forward "-")
-                      (throw 'exit (current-column))))))))
+  (let ((current-column
+         (lambda ()
+           (if (= (line-number-at-pos (point)) 1)
+               (+ (1- first-column) (current-column))
+             (current-column)))))
+    (save-excursion
+      (back-to-indentation)
+      (or
+       (catch 'exit
+         (if (looking-at (rx (1+ ?*)))
+             (let ((level (- (match-end 0) (match-beginning 0))))
+               (while (not (bobp))
+                 (forward-line -1)
+                 (back-to-indentation)
+                 (when (looking-at (rx (1+ ?*)))
+                   (let ((l (- (match-end 0) (match-beginning 0))))
+                     (cond
+                      ((= l level)
+                       (throw 'exit (funcall current-column)))
+                      ((< l level)
+                       (goto-char (match-end 0))
+                       (skip-syntax-forward "-")
+                       (throw 'exit (funcall current-column))))))))
 
-          (while (not (bobp))
-            (forward-line -1)
-            (back-to-indentation)
-            (unless (eolp)
-              (skip-chars-forward "*")
-              (skip-syntax-forward "-")
-              (throw 'exit (current-column))))))
-      first-column))))
+           (while (not (bobp))
+             (forward-line -1)
+             (back-to-indentation)
+             (unless (eolp)
+               (skip-chars-forward "*")
+               (skip-syntax-forward "-")
+               (throw 'exit (funcall current-column))))))
+       first-column))))
 
 (defun satysfi-mode-show-paren-data ()
   (save-excursion
