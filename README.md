@@ -16,9 +16,9 @@ Features implemented so far:
 - Parentheses matching (<kbd>C-M-f</kbd> and <kbd>C-M-b</kbd>)
 - Contextual syntax highlighting (eg. only highlight `let` in program segments)
 - Structure-based auto indentation
+- `+listing` auto indentation
 - [Flycheck](https://github.com/flycheck/flycheck) integration
 
 To-Dos:
-- Auto indentation in `\listing{}`
 - Automatic parentheses pairing
 - Auto indentation in program segments

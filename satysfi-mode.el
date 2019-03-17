@@ -165,8 +165,8 @@
   ; find innermost paren with lexing context transition
   (let ((ppss (syntax-ppss pos)))
     (cond
-     ((nth 3 ppss) 'string)
-     ((nth 4 ppss) 'comment)
+     ((nth 3 ppss) (cons 'string (nth 8 ppss)))
+     ((nth 4 ppss) (cons 'comment (nth 8 ppss)))
      (t
       (catch 'exit
         (dolist (p (reverse (nth 9 (syntax-ppss pos))))
@@ -301,11 +301,20 @@
   (save-excursion
     (goto-char pos)
     (beginning-of-line)
-    (pcase (car (satysfi-mode--lexing-context (point)))
-      ('string nil)  ; TODO: what about indentation in multiline string literals?
-      ('comment nil)  ; this should never happen, though
-      (`,ctx
-       (satysfi-mode-find-base-indent)))))
+    (pcase (satysfi-mode--lexing-context (point))
+      (`(,'string . ,_) (message "!") nil)  ; TODO: what about indentation in multiline string literals?
+      (`(,'comment . ,_) nil)  ; this should never happen, though
+      (`(,_ . ,paren-pos)
+       (let* ((tmp (satysfi-mode-find-base-indent))
+              (indent (car tmp))
+              (chain (cdr tmp))
+              (command (satysfi-mode--active-command (point)))
+              (indent-fun (assoc command satysfi-mode-find-command-indent-function-alist)))
+         (if (and chain indent-fun)
+             (save-restriction
+               (narrow-to-region (1+ paren-pos) (line-end-position))
+               (funcall (cdr indent-fun) indent))
+           indent))))))
 
 (defun satysfi-mode-find-base-indent ()
   (save-excursion
@@ -336,11 +345,46 @@
                      (current-column))))))
           (cond
            (content-alignment  ; TODO: make vertical alignment configurable?
-            content-alignment)
+            (cons content-alignment t))
            ((or (looking-at-p (rx "|)"))
                 (eq (syntax-class (syntax-after (point))) 5))  ; 5 for close parenthesis
-            open-indentaion)
-           (t  (+ satysfi-basic-offset open-indentaion))))))))
+            (cons open-indentaion nil))
+           (t (cons (+ satysfi-basic-offset open-indentaion) t))))))))
+
+(defvar satysfi-mode-find-command-indent-function-alist
+  '(("+listing" . satysfi-mode-find-itemize-indent)
+    ("\\listing" . satysfi-mode-find-itemize-indent)))
+
+(defun satysfi-mode-find-itemize-indent (first-column)
+  (save-excursion
+    (back-to-indentation)
+    (max
+     first-column
+     (or
+      (catch 'exit
+        (if (looking-at (rx (1+ ?*)))
+            (let ((level (- (match-end 0) (match-beginning 0))))
+              (while (not (bobp))
+                (forward-line -1)
+                (back-to-indentation)
+                (when (looking-at (rx (1+ ?*)))
+                  (let ((l (- (match-end 0) (match-beginning 0))))
+                    (cond
+                     ((= l level)
+                      (throw 'exit (current-column)))
+                     ((< l level)
+                      (goto-char (match-end 0))
+                      (skip-syntax-forward "-")
+                      (throw 'exit (current-column))))))))
+
+          (while (not (bobp))
+            (forward-line -1)
+            (back-to-indentation)
+            (unless (eolp)
+              (skip-chars-forward "*")
+              (skip-syntax-forward "-")
+              (throw 'exit (current-column))))))
+      first-column))))
 
 (defun satysfi-mode-show-paren-data ()
   (save-excursion
