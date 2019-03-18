@@ -34,35 +34,41 @@
   ;; Messages follow with 4-space indentation.
   (let ((errors)
         (error-regexp
-         (rx bol "! [" (group (0+ nonl)) "] at \"" (group (0+ nonl))
-             "\", line " (group (1+ digit)) ", character" (? "s") " " (group (1+ digit))
-             )))
+         (rx point "[" (group (minimal-match (0+ nonl))) "] at \"" (group (0+ nonl))
+             "\", line " (group (1+ digit)) ", character" (? "s") " " (group (1+ digit))))
+        (unformatted-error-regexp
+         (rx point "[" (group (minimal-match (0+ nonl))) "] " (group (0+ nonl)))))
     (with-temp-buffer
       (insert output)
       (goto-char (point-min))
-      (while (re-search-forward error-regexp nil t)
-        (let* ((type (match-string 1))
-               (file (match-string 2))
-               (line (match-string 3))
-               (column (match-string 4))
-               (message (concat type ": "))
-               (level (cond
-                       ((string-match-p "Error" type) 'error)
-                       ((string-match-p "Warning" type) 'warning)
-                       (t 'info))))
-          (forward-line +1)
-          (while (looking-at-p "    ")
-            (setq message (concat message (buffer-substring (+ (point) 4) (1+ (line-end-position)))))
-            (forward-line +1))
-          (push (flycheck-error-new-at
-                 (flycheck-string-to-number-safe line)
-                 (1+ (flycheck-string-to-number-safe column))
-                 level
-                 message
-                 :filename file
-                 :checker checker
-                 :buffer buffer)
-                errors)))
+      (while (re-search-forward (rx bol "! ") nil t)
+        (let (type file line column message)
+          (if (or (and (re-search-forward error-regexp nil t)
+                       (setq type (match-string 1)
+                             file (match-string 2)
+                             line (flycheck-string-to-number-safe (match-string 3))
+                             column (1+ (flycheck-string-to-number-safe (match-string 4)))
+                             message (concat "[" type "] ")))
+                  (and (re-search-forward unformatted-error-regexp nil t)
+                       (setq type (match-string 1)
+                             message (concat (match-string 2) "\n"))))
+              (let ((level (cond
+                            ((string-match-p "Error" type) 'error)
+                            ((string-match-p "Warning" type) 'warning)
+                            (t 'info))))
+                (forward-line +1)
+                (while (looking-at-p "    ")
+                  (setq message (concat message (buffer-substring (+ (point) 4) (1+ (line-end-position)))))
+                  (forward-line +1))
+                (push (flycheck-error-new-at
+                       line
+                       column
+                       level
+                       message
+                       :filename file
+                       :checker checker
+                       :buffer buffer)
+                      errors)))))
       (reverse errors))))
 
 (flycheck-define-checker satysfi
