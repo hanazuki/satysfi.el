@@ -304,8 +304,8 @@
 (defvar satysfi-mode-font-lock-keywords
   `((,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-program-keywords-regexp) 1 satysfi-mode-program-keyword-face)
     (,(satysfi-mode--match-contextual-keywords '(program) 'satysfi-mode-header-keywords-regexp) 1 satysfi-mode-header-keyword-face)
-    (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-block-commands-regexp) 1 satysfi-mode-block-command-face)
-    (,(satysfi-mode--match-contextual-keywords '(block inline) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-inline-command-face)
+    (,(satysfi-mode--match-contextual-keywords '(block) 'satysfi-mode-block-commands-regexp) 1 satysfi-mode-block-command-face)
+    (,(satysfi-mode--match-contextual-keywords '(inline) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-inline-command-face)
     (,(satysfi-mode--match-contextual-keywords '(math) 'satysfi-mode-inline-commands-regexp) 1 satysfi-mode-math-command-face)
     (,(satysfi-mode--match-contextual-keywords '(inline math) 'satysfi-mode-escaped-chars-regexp) 1 satysfi-mode-escaped-char-face))
   "Font-lock keywords for `satysfi-mode'.")
