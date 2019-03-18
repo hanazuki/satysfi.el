@@ -324,12 +324,20 @@
   :group 'satysfi)
 
 (defconst satysfi-default-offsets-alist
-  '((list-separator . -)))
+  '((program . +)
+    (block . +)
+    (inline . +)
+    (math . +)
+    (list-separator . -)))
 
 (defcustom satysfi-offsets-alist nil
   "Indentation offset customization"
   :type '(alist :key-type symbol :value-type integer
-                :options (list-separator))
+                :options (program
+                          block
+                          inline
+                          math
+                          list-separator))
   :group 'satysfi)
 
 (defun satysfi-mode-get-offset (symbol)
@@ -381,7 +389,7 @@
 (defun satysfi-mode-find-base-indent ()
   (save-excursion
     (back-to-indentation)
-    (let ((open-pos (cdr (satysfi-mode--lexing-context (point)))))
+    (pcase-let ((`(,ctx . ,open-pos) (satysfi-mode--lexing-context (point))))
       (if (eq open-pos 0)
           ;; no indent for toplevel
           (cons
@@ -417,7 +425,7 @@
                            (progn (forward-char 1) t))))))
               (if at-close
                   (cons open-indentaion nil)
-                (cons (+ satysfi-basic-offset open-indentaion) t)))))))))
+                (cons (+ (satysfi-mode-get-offset ctx) open-indentaion) t)))))))))
 
 (defun satysfi-mode-find-list-indent (first-column)
   (let ((current-column
