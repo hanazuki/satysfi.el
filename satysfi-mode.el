@@ -196,6 +196,14 @@
               (throw 'exit (cons ctx p)))))
         (cons 'program 0))))))
 
+;; Returns whether pos is in { | }.
+(defun satysfi-mode--list-context-p (pos)
+  (pcase-let ((`(,ctx . ,pos) (satysfi-mode--lexing-context pos)))
+    (if (memq ctx '(inline math))
+        (save-excursion
+          (goto-char (1+ pos))
+          (forward-comment (buffer-size))
+          (eq (following-char) ?|)))))
 
 ;; Check if pos is an active position in block or inline context
 ;; Returns active command if the position is active
@@ -315,6 +323,27 @@
   :type 'integer
   :group 'satysfi)
 
+(defconst satysfi-default-offsets-alist
+  '((list-separator . -)))
+
+(defcustom satysfi-offsets-alist nil
+  "Indentation offset customization"
+  :type '(alist :key-type symbol :value-type integer
+                :options (list-separator))
+  :group 'satysfi)
+
+(defun satysfi-mode-get-offset (symbol)
+  (or (let ((offset
+             (cdr (or (assq symbol satysfi-offsets-alist)
+                      (assq symbol satysfi-default-offsets-alist)))))
+        (pcase offset
+          ('+ satysfi-basic-offset)
+          ('++ (* 2 satysfi-basic-offset))
+          ('- (- satysfi-basic-offset))
+          ('-- (* -2 satysfi-basic-offset))
+          ((pred integerp) offset)))
+      satysfi-basic-offset))
+
 (defun satysfi-mode-indent-line ()
   "Indent current line as SATySFi code."
   (interactive)
@@ -338,11 +367,15 @@
               (indent (car tmp))
               (chain (cdr tmp))
               (command (satysfi-mode--active-command (point)))
-              (indent-fun (assoc command satysfi-mode-find-command-indent-function-alist)))
+              (indent-fun
+               (or
+                (cdr (assoc command satysfi-mode-find-command-indent-function-alist))
+                (and (satysfi-mode--list-context-p (point))
+                     'satysfi-mode-find-list-indent))))
          (if (and chain indent-fun)
              (save-restriction
                (narrow-to-region (1+ paren-pos) (line-end-position))
-               (funcall (cdr indent-fun) indent))
+               (funcall indent-fun indent))
            indent))))))
 
 (defun satysfi-mode-find-base-indent ()
@@ -385,6 +418,32 @@
               (if at-close
                   (cons open-indentaion nil)
                 (cons (+ satysfi-basic-offset open-indentaion) t)))))))))
+
+(defun satysfi-mode-find-list-indent (first-column)
+  (let ((current-column
+         (lambda ()
+           (if (= (line-number-at-pos (point)) 1)
+               (+ (1- first-column) (current-column))
+             (current-column)))))
+    (save-excursion
+      (back-to-indentation)
+      (or
+       (catch 'exit
+         (if (eq (following-char) ?|)
+             (while (not (bobp))
+               (forward-line -1)
+               (back-to-indentation)
+               (when (eq (following-char) ?|)
+                 (throw 'exit (funcall current-column))))
+
+           (while (not (bobp))
+             (forward-line -1)
+             (back-to-indentation)
+             (unless (eolp)
+               (skip-chars-forward "|")
+               (skip-syntax-forward "-")
+               (throw 'exit (funcall current-column))))))
+       (+ first-column (satysfi-mode-get-offset 'list-separator))))))
 
 (defvar satysfi-mode-find-command-indent-function-alist
   '(("+listing" . satysfi-mode-find-itemize-indent)
