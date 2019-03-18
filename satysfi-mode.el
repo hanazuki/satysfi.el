@@ -122,9 +122,7 @@
                (forward-char 1))
               ((or ?\( ?\[ ?\{)
                (let ((ctx (car (satysfi-mode--lexing-context (point)))))
-                 (when (or (memq ctx '(program block inline))
-                           (and (eq ctx 'math) (eq (preceding-char) ?!)))
-                   (put-text-property (point) (1+ (point)) 'satysfi-lexing-context (satysfi-mode--lexing-context-transition ctx (point)))))
+                 (put-text-property (point) (1+ (point)) 'satysfi-lexing-context (satysfi-mode--lexing-context-transition ctx (point))))
                (forward-char 1))
               (_
                (forward-char 1)))))))))
@@ -151,6 +149,8 @@
     (pcase current-context
       ('program
        (pcase ch
+         (?\( 'program)
+         (?\[ 'program)
          (?\< 'block)
          (?\{ (if (eq (char-before pos) ?$) 'math 'inline))))
       ('block
@@ -166,12 +166,14 @@
           (?\< 'block)
           (?\{ (if (eq (char-before pos) ?$) 'math 'inline))))
       ('math
-       (when (eq (char-before pos) ?!)
+       (if (eq (char-before pos) ?!)
+           (pcase ch
+             (?\( 'program)
+             (?\[ 'program)
+             (?\< 'block)
+             (?\{ 'inline))
          (pcase ch
-           (?\( 'program)
-           (?\[ 'program)
-           (?\< 'block)
-           (?\{ 'inline)))))))
+           (?\{ 'math)))))))
 
 ;; Returns lexing context at pos and the position of
 ;; enclosing open parenthesis.
@@ -341,19 +343,15 @@
 (defun satysfi-mode-find-base-indent ()
   (save-excursion
     (back-to-indentation)
-    (let ((ppss (syntax-ppss)))
-      (if (not (nth 1 ppss))
+    (let ((open-pos (cdr (satysfi-mode--lexing-context (point)))))
+      (if (eq open-pos 0)
           ;; no indent for toplevel
           (cons
            (if (fboundp 'prog-first-column) (prog-first-column) 0)
            nil)
-        (let ((open-indentaion
+        (let ((content-alignment
                (save-excursion
-                 (goto-char (nth 1 ppss))
-                 (current-indentation)))
-              (content-alignment
-               (save-excursion
-                 (goto-char (nth 1 ppss))
+                 (goto-char open-pos)
                  (if (looking-at-p (rx "(|"))
                      (forward-char 2)
                    (forward-char 1))
@@ -365,13 +363,23 @@
                         (eq (line-number-at-pos) line)
                         (not (eq (current-column) (line-end-position))))
                      (current-column))))))
-          (cond
-           (content-alignment  ; TODO: make vertical alignment configurable?
-            (cons content-alignment t))
-           ((or (looking-at-p (rx "|)"))
-                (eq (syntax-class (syntax-after (point))) 5))  ; 5 for close parenthesis
-            (cons open-indentaion nil))
-           (t (cons (+ satysfi-basic-offset open-indentaion) t))))))))
+          (if content-alignment  ; TODO: make vertical alignment configurable?
+              (cons content-alignment t)
+            (let ((open-indentaion
+                   (save-excursion
+                     (goto-char open-pos)
+                     (current-indentation)))
+                  (at-close
+                   (save-excursion
+                     (or
+                      (and (looking-at-p (rx "|)"))
+                           (progn (forward-char 2) t))
+                      (and (eq (syntax-class (syntax-after (point))) 5)  ; 5 for close parenthesis
+                           (get-text-property (nth 1 (syntax-ppss (point))) 'satysfi-lexing-context)
+                           (progn (forward-char 1) t))))))
+              (if at-close
+                  (cons open-indentaion nil)
+                (cons (+ satysfi-basic-offset open-indentaion) t)))))))))
 
 (defvar satysfi-mode-find-command-indent-function-alist
   '(("+listing" . satysfi-mode-find-itemize-indent)
