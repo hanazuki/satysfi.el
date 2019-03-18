@@ -98,7 +98,7 @@
                     (forward-comment 1)))
             (unless (and
                      (< (point) end)
-                     (re-search-forward (rx (any "#`<>([{")) end t))
+                     (re-search-forward (rx (any "#`<>([{@")) end t))
               (throw 'exit t))
             (goto-char (match-beginning 0))
 
@@ -124,6 +124,12 @@
                (let ((ctx (car (satysfi-mode--lexing-context (point)))))
                  (put-text-property (point) (1+ (point)) 'satysfi-lexing-context (satysfi-mode--lexing-context-transition ctx (point))))
                (forward-char 1))
+              (?@
+               (let ((eol (min end (line-end-position))))
+                 (when (re-search-forward (rx ":" (0+ " ")) eol t)
+                   (while (re-search-forward (rx (1+ (not (syntax word)))) eol t)
+                     (put-text-property (match-beginning 0) (match-end 0) 'syntax-table (string-to-syntax "_"))))
+                 (goto-char eol)))
               (_
                (forward-char 1)))))))))
 
