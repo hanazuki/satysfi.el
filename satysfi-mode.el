@@ -340,17 +340,21 @@
                           list-separator))
   :group 'satysfi)
 
-(defun satysfi-mode-get-offset (symbol)
-  (or (let ((offset
-             (cdr (or (assq symbol satysfi-offsets-alist)
-                      (assq symbol satysfi-default-offsets-alist)))))
-        (pcase offset
-          ('+ satysfi-basic-offset)
-          ('++ (* 2 satysfi-basic-offset))
-          ('- (- satysfi-basic-offset))
-          ('-- (* -2 satysfi-basic-offset))
-          ((pred integerp) offset)))
-      satysfi-basic-offset))
+(defun satysfi-mode-get-indentation (symbol &optional current-indentation)
+  (cl-block indent
+    (+ (or current-indentation 0)
+       (let ((offset
+              (cdr (or (assq symbol satysfi-offsets-alist)
+                       (assq symbol satysfi-default-offsets-alist)
+                       (error "Unknown syntax symbol: %s" symbol)))))
+         (pcase offset
+           ('+ satysfi-basic-offset)
+           ('++ (* 2 satysfi-basic-offset))
+           ('- (- satysfi-basic-offset))
+           ('-- (* -2 satysfi-basic-offset))
+           ((pred integerp) offset)
+           (`[abs-offset] (cl-return-from indent abs-offset))
+           (_ (error "Illegal offset value in satysfi-offsets-alist for %s: %s" symbol offset)))))))
 
 (defun satysfi-mode-indent-line ()
   "Indent current line as SATySFi code."
@@ -425,7 +429,7 @@
                            (progn (forward-char 1) t))))))
               (if at-close
                   (cons open-indentaion nil)
-                (cons (+ (satysfi-mode-get-offset ctx) open-indentaion) t)))))))))
+                (cons (satysfi-mode-get-indentation ctx open-indentaion) t)))))))))
 
 (defun satysfi-mode-find-list-indent (first-column)
   (let ((current-column
@@ -451,7 +455,7 @@
                (skip-chars-forward "|")
                (skip-syntax-forward "-")
                (throw 'exit (funcall current-column))))))
-       (+ first-column (satysfi-mode-get-offset 'list-separator))))))
+       (satysfi-mode-get-offset 'list-separator first-column)))))
 
 (defvar satysfi-mode-find-command-indent-function-alist
   '(("+listing" . satysfi-mode-find-itemize-indent)
