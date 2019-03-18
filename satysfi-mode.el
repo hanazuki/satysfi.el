@@ -455,7 +455,7 @@
                (skip-chars-forward "|")
                (skip-syntax-forward "-")
                (throw 'exit (funcall current-column))))))
-       (satysfi-mode-get-offset 'list-separator first-column)))))
+       (satysfi-mode-get-indentation 'list-separator first-column)))))
 
 (defvar satysfi-mode-find-command-indent-function-alist
   '(("+listing" . satysfi-mode-find-itemize-indent)
