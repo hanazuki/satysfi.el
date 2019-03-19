@@ -265,6 +265,46 @@
   (interactive)
   (message (satysfi-mode--active-command (point))))
 
+
+;;; Font Lock
+
+(defgroup satysfi-faces nil
+  "Faces for syntax highlight."
+  :group 'satysfi)
+
+(defcustom satysfi-mode-block-command-face font-lock-function-name-face
+  "Face for block commands (+command)."
+  :type 'face
+  :group 'satysfi-faces)
+(defcustom satysfi-mode-inline-command-face font-lock-function-name-face
+  "Face for inline commands (\\command)."
+  :type 'face
+  :group 'satysfi-faces)
+(defcustom satysfi-mode-math-command-face font-lock-function-name-face
+  "Face for math commands (\\math)."
+  :type 'face
+  :group 'satysfi-faces)
+(defcustom satysfi-mode-program-keyword-face font-lock-keyword-face
+  "Face for ML keywords."
+  :type 'face
+  :group 'satysfi-faces)
+(defcustom satysfi-mode-header-keyword-face font-lock-keyword-face
+  "Face for header directives (@directive)."
+  :type 'face
+  :group 'satysfi-faces)
+(defcustom satysfi-mode-escaped-char-face font-lock-warning-face
+  "Face for escaped characters."
+  :type 'face
+  :group 'satysfi-faces)
+(defcustom satysfi-mode-string-face font-lock-string-face
+  "Face for string literals."
+  :type 'face
+  :group 'satysfi-faces)
+(defcustom satysfi-mode-comment-face font-lock-comment-face
+  "Face for comments."
+  :type 'face
+  :group 'satysfi-faces)
+
 (defvar satysfi-mode-program-keywords-regexp
   (regexp-opt '("let" "let-rec" "let-mutable" "let-inline" "let-block" "let-math" "in" "and"
                 "match" "with" "when" "as" "if" "then" "else" "fun"
@@ -535,23 +575,6 @@
        (pcase (char-before beg)
          (?$ (setq beg (1- beg))))))
     (cons beg end)))
-
-(defvar satysfi-mode-block-command-face
-  font-lock-function-name-face)
-(defvar satysfi-mode-inline-command-face
-  font-lock-function-name-face)
-(defvar satysfi-mode-math-command-face
-  font-lock-function-name-face)
-(defvar satysfi-mode-program-keyword-face
-  font-lock-keyword-face)
-(defvar satysfi-mode-header-keyword-face
-  font-lock-keyword-face)
-(defvar satysfi-mode-escaped-char-face
-  font-lock-warning-face)
-(defvar satysfi-mode-string-face
-  font-lock-string-face)
-(defvar satysfi-mode-comment-face
-  font-lock-comment-face)
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.\\(saty\\|satyh\\)\\'" . satysfi-mode))
 
