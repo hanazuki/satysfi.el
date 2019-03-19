@@ -380,7 +380,15 @@
 
 (defcustom satysfi-offsets-alist nil
   "Indentation offset customization"
-  :type '(alist :key-type symbol :value-type integer
+  :type '(alist :key-type symbol
+                :value-type (choice
+                             (const :tag "Package default" nil)
+                             (const :tag "Basic offset" :+)
+                             (const :tag "2 * basic offset" :++)
+                             (const :tag "-1 * basic offset" :-)
+                             (const :tag "-2 * basic offset" :--)
+                             (integer :tag "Relative offset")
+                             (vector :tag "Absolute offset" integer))
                 :options (program
                           block
                           inline
