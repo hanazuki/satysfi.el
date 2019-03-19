@@ -29,6 +29,16 @@
 (eval-when-compile
   (require 'paren))
 
+;;; General
+
+(defgroup satysfi nil
+  "SATySFi"
+  :prefix "satysfi-"
+  :group 'languages)
+
+
+;;; Syntax
+
 (defconst satysfi-mode--syntax-alist
   '((?\n . ">")
     (?#  . "'")
@@ -353,10 +363,8 @@
 (defun satysfi-mode-syntactic-face (state)
   (if (nth 3 state) satysfi-mode-string-face satysfi-mode-comment-face))
 
-(defgroup satysfi nil
-  "SATySFi"
-  :prefix "satysfi-"
-  :group 'languages)
+
+;;; Indents
 
 (defcustom satysfi-basic-offset 2
   "Amount of basic offset"
@@ -535,6 +543,9 @@
                (throw 'exit (funcall current-column))))))
        first-column))))
 
+
+;;; show-paren-mode integration
+
 (defun satysfi-mode-show-paren-data ()
   (save-excursion
     (cond
@@ -575,6 +586,9 @@
        (pcase (char-before beg)
          (?$ (setq beg (1- beg))))))
     (cons beg end)))
+
+
+;;; Mode registration
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.\\(saty\\|satyh\\)\\'" . satysfi-mode))
 
