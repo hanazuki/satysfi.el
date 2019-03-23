@@ -327,8 +327,7 @@
               'symbols))
 
 (defvar satysfi-mode-header-keywords-regexp
-  (concat (regexp-opt '("@import" "@require") t)
-          ":"))
+  (rx bol (0+ (syntax whitespace)) (group "@" (or "import" "require" "stage")) ":"))
 
 (defvar satysfi-mode-block-commands-regexp
   (rx (| bol point (not-char "\\")) (0+ "\\\\") (group "+" (1+ (or (syntax word) (syntax symbol))))))
