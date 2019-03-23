@@ -8,7 +8,7 @@ jobs:
       - run:
           name: Install
           command: |
-            apt-get update -qq && apt-get install -y --no-install-recommends make emacs25-nox emacs25-el elpa-flycheck
+            apt-get update -qq && apt-get install -y --no-install-recommends make ruby emacs25-nox emacs25-el elpa-flycheck
       - run:
           name: Byte-compile
           command: |
