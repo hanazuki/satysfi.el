@@ -18,6 +18,7 @@ Dir[*$testfiles].each do |file|
 (pcase-let ((`(,fin ,fout) command-line-args-left))
   (require 'satysfi-mode)
   (satysfi-mode)
+  (setq indent-tabs-mode nil)
   (insert-file-contents fin)
   (indent-region (point-min) (point-max))
   (write-region (point-min) (point-max) fout))
