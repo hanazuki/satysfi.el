@@ -5,7 +5,7 @@ require 'tempfile'
 $testfiles = ARGV.size > 0 ? ARGS : %w[indent/*.in.saty]
 
 def emacs(*args)
-  p cmd = %W[emacs --batch --no-site-file -L #{File.dirname(__dir__)}] + args
+  p cmd = %W[#{ENV.fetch('EMACS', 'emacs')} --batch --no-site-file -L #{File.dirname(__dir__)}] + args
   system(*cmd, exception: true)
 end
 

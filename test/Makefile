@@ -1,3 +1,5 @@
+EMACS=emacs
+
 .PHONY: all
 all: indent
 

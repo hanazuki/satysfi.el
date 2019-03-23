@@ -1,3 +1,5 @@
+EMACS=emacs
+
 elisps := $(wildcard *.el)
 elisp_objects = $(patsubst 	%.el,%.elc,${elisps})
 
@@ -7,7 +9,7 @@ all: byte-compile test
 byte-compile: ${elisp_objects}
 
 %.elc: %.el
-	emacs -batch --no-site-file -L . -f batch-byte-compile $<
+	${EMACS} -batch --no-site-file -L . -f batch-byte-compile $<
 
 .PHONY: test
 test:
