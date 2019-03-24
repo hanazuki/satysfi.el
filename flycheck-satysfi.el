@@ -79,7 +79,7 @@
   :command ("satysfi"
             "-o" "/dev/null"  ; TODO: Windows?
             (option-flag "-t" flycheck-satysfi-typecheck-only)
-            (option-flag "-t" flycheck-satysfi-use-bytecompiler)
+            (option-flag "-b" flycheck-satysfi-use-bytecompiler)
             source-inplace)
   :error-parser flycheck-satysfi-parse-errors
   :modes satysfi-mode)
