@@ -6,8 +6,6 @@
 ;; Keywords: satysfi, languages
 ;; URL: https://github.com/hanazuki/satysfi.el
 
-;; This file is not part of GNU Emacs.
-
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
@@ -21,14 +19,22 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-(require 'cl-lib)
-(require 'rx)
+;;; Commentary:
+;; Provides font-locking and indentation support for SATySFi documents.
+
+;;; Code:
+
+(eval-when-compile
+  (require 'cl-lib)
+  (require 'rx))
+
 (require 'seq)
 
 ; Optional dependency
 (eval-when-compile
   (require 'paren))
 
+
 ;;; General
 
 (defgroup satysfi nil
@@ -49,7 +55,8 @@
     (?\\ . "/")
     (?\] . ")[")
     (?\{ . "(}")
-    (?\} . "){")))
+    (?\} . "){"))
+  "Default entries for `satysfi-mode-syntax-table'.")
 
 (defvar satysfi-mode-syntax-table
   (let ((st (make-syntax-table)))
@@ -81,7 +88,9 @@
        (1 "_")))))
 
 (defun satysfi-syntax-propertize (beg end)
-  (remove-list-of-text-properties beg end '(satysfi-lexing-context satysfi-active-command))
+  "Syntax propertize the region between BEG and END."
+
+  (remove-list-of-text-properties beg end '(satysfi-lexing-context))
   (funcall (syntax-propertize-rules satysfi-syntax-propertize-rules) beg end)
 
   (save-excursion
@@ -142,24 +151,24 @@
               (_
                (forward-char 1)))))))))
 
-;; Compute lexing context transition at pos.
-;; From lexer.mll:
-;;
-;;   The SATySFi lexer is stateful; the transitions are:
-;;   | to \ from |program|block |inline|active |  math  |
-;;   |-----------|-------|------|------|-------|--------|
-;;   |  program  | (   ) |      |      | (   ) | !(   ) |
-;;   |           | (| |) |      |      | (| |) | !(| |) |
-;;   |           | [   ] |      |      | [   ] | ![   ] |
-;;   |  block    | '<  > | <  > | <  > | <     | !<   > |
-;;   |  inline   | {   } | {  } | {  } | {     | !{   } |
-;;   |  active   |       | +x ; | \x ; |       |        |
-;;   |           |       | #x ; | #x ; |       |        |
-;;   |  math     | ${  } |      | ${ } |       | {    } |
-;;
-;;   Note that the active-block and active-inline transitions are one-way.
-;;
 (defun satysfi-mode--lexing-context-transition (current-context pos)
+  "Given CURRENT-CONTEXT, compute the next lexing context transition at POS."
+  ;; From lexer.mll:
+  ;;
+  ;;   The SATySFi lexer is stateful; the transitions are:
+  ;;   | to \ from |program|block |inline|active |  math  |
+  ;;   |-----------|-------|------|------|-------|--------|
+  ;;   |  program  | (   ) |      |      | (   ) | !(   ) |
+  ;;   |           | (| |) |      |      | (| |) | !(| |) |
+  ;;   |           | [   ] |      |      | [   ] | ![   ] |
+  ;;   |  block    | '<  > | <  > | <  > | <     | !<   > |
+  ;;   |  inline   | {   } | {  } | {  } | {     | !{   } |
+  ;;   |  active   |       | +x ; | \x ; |       |        |
+  ;;   |           |       | #x ; | #x ; |       |        |
+  ;;   |  math     | ${  } |      | ${ } |       | {    } |
+  ;;
+  ;;   Note that the active-block and active-inline transitions are one-way.
+
   (let ((ch (char-after pos)))
     (pcase current-context
       ('program
@@ -190,9 +199,9 @@
          (pcase ch
            (?\{ 'math)))))))
 
-;; Returns lexing context at pos and the position of
-;; enclosing open parenthesis.
 (defun satysfi-mode--lexing-context (pos)
+  "Return lexing context at POS and the position of enclosing open parenthesis."
+
   ; find innermost paren with lexing context transition
   (let ((ppss (syntax-ppss pos)))
     (cond
@@ -206,8 +215,8 @@
               (throw 'exit (cons ctx p)))))
         (cons 'program 0))))))
 
-;; Returns whether pos is in { | }.
 (defun satysfi-mode--list-context-p (pos)
+  "Return whether POS is in { | }."
   (pcase-let ((`(,ctx . ,pos) (satysfi-mode--lexing-context pos)))
     (if (memq ctx '(inline math))
         (save-excursion
@@ -215,9 +224,10 @@
           (forward-comment (buffer-size))
           (eq (following-char) ?|)))))
 
-;; Check if pos is an active position in block or inline context
-;; Returns active command if the position is active
 (defun satysfi--active-p (pos &optional skip-block-inline)
+  "Return active command if POS is an active position.
+Skip preceding block and inline area if SKIP-BLOCK-INLINE."
+
   (save-excursion
     (goto-char pos)
     (catch 'exit
@@ -257,6 +267,7 @@
                     (match-string 0))))))))))
 
 (defun satysfi-mode--active-command (pos)
+  "Return enclosing command name at POS."
   (let* ((tmp (satysfi-mode--lexing-context pos))
          (ctx (car tmp))
          (pos (cdr tmp)))
@@ -264,15 +275,17 @@
         (satysfi--active-p pos t))))
 
 (defun satysfi-current-context ()
+  "Print the lexing context at point (for debugging)."
   (interactive)
   (message "%s" (satysfi-mode--lexing-context (point))))
 
 (defun satysfi-current-activation ()
+  "Print active command name at point (for debugging)."
   (interactive)
   (message (satysfi--active-p (point))))
 
 (defun satysfi-current-command ()
-  (interactive)
+  "Print enclosing command name at point (for debugging)."
   (message (satysfi-mode--active-command (point))))
 
 
@@ -339,6 +352,8 @@
   (rx (group "\\" (any (?\s . ?@) (?\[ . ?`) (?\{ . ?~)))))
 
 (defun satysfi-mode--match-contextual-keywords (contexts keywords-regexp)
+  "Only in CONTEXTS, find next match of KEYWORDS-REGEXP."
+
   (letrec ((re (symbol-value keywords-regexp))
            (matcher
             (lambda (limit)
@@ -359,14 +374,11 @@
     (,(satysfi-mode--match-contextual-keywords '(inline math) 'satysfi-mode-escaped-chars-regexp) 1 satysfi-mode-escaped-char-face))
   "Font-lock keywords for `satysfi-mode'.")
 
-(defun satysfi-mode-syntactic-face (state)
-  (if (nth 3 state) satysfi-mode-string-face satysfi-mode-comment-face))
-
 
 ;;; Indents
 
 (defcustom satysfi-basic-offset 2
-  "Amount of basic offset"
+  "Amount of basic offset."
   :type 'integer
   :group 'satysfi)
 
@@ -378,7 +390,7 @@
     (list-separator . -)))
 
 (defcustom satysfi-offsets-alist nil
-  "Indentation offset customization"
+  "Indentation offset customization."
   :type '(alist :key-type symbol
                 :value-type (choice
                              (const :tag "Package default" nil)
@@ -395,7 +407,13 @@
                           list-separator))
   :group 'satysfi)
 
+(defvar satysfi-mode-find-command-indent-function-alist
+  '(("+listing" . satysfi-mode-find-itemize-indent)
+    ("\\listing" . satysfi-mode-find-itemize-indent)))
+
 (defun satysfi-mode-get-indentation (symbol &optional current-indentation)
+  "Return indentation for syntax SYMBOL, given the surrounding indent as CURRENT-INDENTATION."
+
   (cl-block indent
     (+ (or current-indentation 0)
        (let ((offset
@@ -408,7 +426,7 @@
            ('- (- satysfi-basic-offset))
            ('-- (* -2 satysfi-basic-offset))
            ((pred integerp) offset)
-           (`[abs-offset] (cl-return-from indent abs-offset))
+           (`[,abs-offset] (cl-return-from indent abs-offset))
            (_ (error "Illegal offset value in satysfi-offsets-alist for %s: %s" symbol offset)))))))
 
 (defun satysfi-mode-indent-line ()
@@ -423,6 +441,8 @@
           (move-to-column (+ (current-indentation) (- orig-column orig-indent))))))))
 
 (defun satysfi-mode-find-indent (pos)
+  "Find indentation level for the line at POS."
+
   (save-excursion
     (goto-char pos)
     (beginning-of-line)
@@ -446,6 +466,8 @@
            indent))))))
 
 (defun satysfi-mode-find-base-indent ()
+  "Find indentation level for the line at point."
+
   (save-excursion
     (back-to-indentation)
     (pcase-let ((`(,ctx . ,open-pos) (satysfi-mode--lexing-context (point))))
@@ -461,8 +483,7 @@
                      (forward-char 2)
                    (forward-char 1))
                  ;; check if content exists after open paren
-                 (let ((line (line-number-at-pos))
-                       (column (current-column)))
+                 (let ((line (line-number-at-pos)))
                    (forward-comment 1)
                    (if (and
                         (eq (line-number-at-pos) line)
@@ -487,6 +508,8 @@
                 (cons (satysfi-mode-get-indentation ctx open-indentaion) t)))))))))
 
 (defun satysfi-mode-find-list-indent (first-column)
+  "Find indentation level inside { | } context, when aligned to FIRST-COLUMN."
+
   (let ((current-column
          (lambda ()
            (if (= (line-number-at-pos (point)) 1)
@@ -512,11 +535,9 @@
                (throw 'exit (funcall current-column))))))
        (satysfi-mode-get-indentation 'list-separator first-column)))))
 
-(defvar satysfi-mode-find-command-indent-function-alist
-  '(("+listing" . satysfi-mode-find-itemize-indent)
-    ("\\listing" . satysfi-mode-find-itemize-indent)))
-
 (defun satysfi-mode-find-itemize-indent (first-column)
+  "Find indentation level inside \\listing context, when aligned to FIRST-COLUMN."
+
   (let ((current-column
          (lambda ()
            (if (= (line-number-at-pos (point)) 1)
@@ -554,6 +575,9 @@
 ;;; show-paren-mode integration
 
 (defun satysfi-mode-show-paren-data ()
+  "Find matching paren.
+
+This function is intended to be used as a `show-paren-data-function'."
   (save-excursion
     (cond
      ((and (eq (preceding-char) ?\() (eq (following-char) ?|))
@@ -578,6 +602,7 @@
             (list here-beg here-end there-beg there-end mismatch))))))))
 
 (defun satysfi-mode--extend-paren (beg end)
+  "Extend the region designated by BEG and END, if it is part of multi-character parenthesis."
   (let ((str (buffer-substring beg end)))
     (pcase str
       ("("
@@ -612,7 +637,9 @@
                 nil
                 nil
                 nil
-                (font-lock-syntactic-face-function . satysfi-mode-syntactic-face)))
+                (font-lock-syntactic-face-function
+                 . (lambda (state)
+                     (if (nth 3 state) satysfi-mode-string-face satysfi-mode-comment-face)))))
 
   ;; for indent
   (setq-local indent-line-function #'satysfi-mode-indent-line)
