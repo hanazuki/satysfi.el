@@ -14,7 +14,7 @@ Dir[*$testfiles].each do |file|
 
   begin
 
-    emacs('--eval', <<EOS, file, tmpfile.path)
+    emacs('--eval', <<EOS.chomp, file, tmpfile.path)
 (pcase-let ((`(,fin ,fout) command-line-args-left))
   (require 'satysfi-mode)
   (satysfi-mode)
