@@ -1,6 +1,5 @@
-version: 2
 jobs:
-  build:
+  test-stretch:
     docker:
       - image: debian:stretch
     steps:
@@ -13,3 +12,23 @@ jobs:
           name: Test
           command: |
             make EMACS=emacs25
+  test-buster:
+    docker:
+      - image: debian:buster
+    steps:
+      - checkout
+      - run:
+          name: Install
+          command: |
+            apt-get update -qq && apt-get install -y --no-install-recommends make ruby emacs-nox emacs-el elpa-flycheck
+      - run:
+          name: Test
+          command: |
+            make EMACS=emacs
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - test-stretch
+      - test-buster
